@@ -126,8 +126,7 @@ app.get('/contact', (req, res) => {
   res.render('contact', {
     title: 'contact us',
     name: 'christopher coleman',
-    email: 'snorklemonkey42@cmail.com',
-    phone: '555-555-5555'
+    github: 'ctcoleman'
   })
 })
 
