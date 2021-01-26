@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start":"node src/app.mjs"
+    "start": "node src/app.mjs",
+    "dev": "nodemon src/app.mjs -e mjs,js,hbs,css"
   },
   "keywords": [],
   "author": "",
@@ -13,5 +14,8 @@
     "express": "^4.17.1",
     "hbs": "^4.1.1",
     "postman-request": "^2.88.1-postman.28"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7"
   }
 }
