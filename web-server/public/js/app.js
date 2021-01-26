@@ -6,7 +6,7 @@ const feelslikeUI = document.querySelector('#feelslike')
 const precipitationUI = document.querySelector('#precipitation')
 
 weatherForm.addEventListener('submit', e => {
-  fetch(`http://localhost:3000/weather?address=${searchbar.value}`)
+  fetch(`/weather?address=${searchbar.value}`)
   .then(res => {
     res.json()
       .then( ({ name, temperature, feelslike } = {}) => {

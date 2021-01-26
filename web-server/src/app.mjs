@@ -7,6 +7,7 @@ import geocode from '../utils/geocode.mjs'
 import forecast from '../utils/forecast.mjs'
 
 const app = express()
+const port = process.env.PORT || 3000
 
 // define root paths
 const __filename = fileURLToPath(import.meta.url)
@@ -148,7 +149,8 @@ app.get('*', (req, res) => {
   })
 })
 
-// start server on port 3000
-app.listen(3000, () => {
-  console.log(`server started on 3000`)
+// start server on heruko server or local port
+app.listen(port, () => {
+  console.log(`server started on port ${port}`)
 })
+
