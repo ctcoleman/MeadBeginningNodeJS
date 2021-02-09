@@ -1,22 +1,34 @@
 import express from 'express'
+import multer from 'multer'
 import User from '../models/user.js'
+import auth from '../middleware/auth.js'
 
 const router = new express.Router()
 
-// Generate token for saved user
-// Send back token and user
-// Create a new user and test
 
-// ---- USERS ----
-// use express and http to create a new user and save to mongodb
+const upload = multer({
+  dest: 'images/avatars',
+  limits: {
+    fileSize: 1000000,
+  },
+  fileFilter(req, file, cb) {
+    if(!file.originalname.match(/\.(jp(|e)g|png)$/)) {
+      return cb('Please upload an image')
+    }
+
+    cb(undefined, true)
+  }
+})
+
+// -- create account --
 router.post('/users', async (req, res) => { // async returns promis
   const user = new User(req.body)
 
   // If succuss vs. if failed
   try {
     await user.save() // first perform this
-  const token = await user.generateAuthToken() // generate token AFTER the user is successfully saved
-    res.status(201).send({ user, token }) // if successful perform this
+    const token = await user.generateAuthToken() // generate token AFTER the user is successfully saved
+    res.status(201).send({ user, token }) // if successful send user data
   } catch(e) {
     res.status(400).send(e)
   }
@@ -27,40 +39,49 @@ router.post('/users', async (req, res) => { // async returns promis
   //   .catch(e => res.status(400).send(e))
 })
 
-
-// use express http get method to GET user data from the mongodb
-router.get('/users', async (req, res) => {
-  try {
-    const users = await User.find()
-    res.send(users)
-  } catch (e) {
-    res.status(500).send('I beleive something went wrong, sir...')
-  }
-})
-
-// use expres and router to log user in
+// -- log in --
 router.post('/users/login', async (req, res) => {
   try {
     const user = await User.findByCredentials(req.body.email, req.body.password)
     const token = await user.generateAuthToken()
+
     res.send({ user, token })
   } catch(e) {
     res.status(400).send()
   }
 })
 
-// use express http get method to GET a specific user data from the mongodb
-router.get('/users/:id', async (req, res) => {
+// -- log out from active session --
+router.post('/users/logout', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-    res.send(user)
+    req.user.tokens = req.user.tokens.filter(token => token.token !== req.token)
+    await req.user.save()
+
+    res.send('Sucessfully logged out, sir...')
   } catch(e) {
-    res.status(404).send('I beleive something went wrong, sir...')
+    res.status(500).send('I was unable to log you out successfully, sir...')
   }
 })
 
-// use express patch method to update document form mongodb
-router.patch('/users/:id', async (req, res) => {
+// -- log out of all sessions --
+router.post('/users/logoutAll', auth, async (req, res) => {
+  try {
+    req.user.tokens = []
+    await req.user.save()
+
+    res.send('Successfully logged out of all sessions, sir...')
+  } catch(e) {
+    res.status(500).send('I was unable to log out of all sessions, sir...')
+  }
+})
+
+// -- get profile data --
+router.get('/users/me', auth, async (req, res) => {
+  res.send(req.user)
+})
+
+// -- update user profile data
+router.patch('/users/me', auth, async (req, res) => {
   const updates = Object.keys(req.body)
   const allowedUpdates = ['name', 'email', 'password', 'age']
   const isValid = updates.every(update => allowedUpdates.includes(update))
@@ -70,38 +91,29 @@ router.patch('/users/:id', async (req, res) => {
   }
 
   try {
-    const user = await User.findById(req.params.id)
-    updates.forEach(update => user[update] = req.body[update])
-    await user.save()
+    const user = await User.findById(req.user._id)
+    updates.forEach(update => req.user[update] = req.body[update])
+    await req.user.save()
 
-    // const user = await User.findByIdAndUpdate(req.params.id, req.body, { 
-    //   new: true,
-    //   runValidators: true
-    // })
-
-    if(!user) {
-      return res.status(404).send('I wasn\'t able to locate that user, sir...')
-    }
-
-    res.send(user)
+    res.send(req.user)
   } catch(e) {
-    res.status(400).send('There seems to be something wrong, sir...' + e)
+    res.status(400).send('There seems to be something wrong, sir...')
   }
 })
 
-// use express delete method to remove user documents from mongodb
-router.delete('/users/:id', async (req, res) => {
+// -- delete profile --
+router.delete('/users/me', auth, async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id)
-
-    if(!user) {
-      return res.status(404).send('I couldn\'t find that user sir..')
-    }
-
-    res.send(user)
+    await req.user.remove()
+    res.send('SUCCESS - successfully removed your profile, sir...good bye')
   } catch(e) {
     res.status(400).send('There seems to be something wrong, sir....' + e)
   }
+})
+
+// -- upload user profile image --
+router.post('/users/me/avatar', upload.single('avatar'), async (req, res) => {
+  res.status(202).send('SUCCESS')
 })
 
 export default router
