@@ -1,19 +1,20 @@
 import express from 'express'
 import multer from 'multer'
+import sharp from 'sharp'
 import User from '../models/user.js'
 import auth from '../middleware/auth.js'
 
+// -- instantiate router --
 const router = new express.Router()
 
-
+// -- multer upload config --
 const upload = multer({
-  dest: 'images/avatars',
   limits: {
     fileSize: 1000000,
   },
   fileFilter(req, file, cb) {
     if(!file.originalname.match(/\.(jp(|e)g|png)$/)) {
-      return cb('Please upload an image')
+      return cb(new Error('please upload an image'))
     }
 
     cb(undefined, true)
@@ -59,7 +60,7 @@ router.post('/users/logout', auth, async (req, res) => {
 
     res.send('Sucessfully logged out, sir...')
   } catch(e) {
-    res.status(500).send('I was unable to log you out successfully, sir...')
+    res.status(500).send({ error: 'invalid entery' })
   }
 })
 
@@ -69,9 +70,9 @@ router.post('/users/logoutAll', auth, async (req, res) => {
     req.user.tokens = []
     await req.user.save()
 
-    res.send('Successfully logged out of all sessions, sir...')
+    res.send('SUCCESS')
   } catch(e) {
-    res.status(500).send('I was unable to log out of all sessions, sir...')
+    res.status(500).send({ error: 'invalid entery' })
   }
 })
 
@@ -87,7 +88,7 @@ router.patch('/users/me', auth, async (req, res) => {
   const isValid = updates.every(update => allowedUpdates.includes(update))
 
   if(!isValid) {
-    return res.status(400).send({ error: 'I\'m unable to update that property, sir...' })
+    return res.status(400).send({ error: 'invalid entery' })
   }
 
   try {
@@ -97,7 +98,7 @@ router.patch('/users/me', auth, async (req, res) => {
 
     res.send(req.user)
   } catch(e) {
-    res.status(400).send('There seems to be something wrong, sir...')
+    res.status(400).send({ error: 'UNSUCCESSFUL' })
   }
 })
 
@@ -105,15 +106,47 @@ router.patch('/users/me', auth, async (req, res) => {
 router.delete('/users/me', auth, async (req, res) => {
   try {
     await req.user.remove()
-    res.send('SUCCESS - successfully removed your profile, sir...good bye')
+    res.send({ success: 'good bye' })
   } catch(e) {
-    res.status(400).send('There seems to be something wrong, sir....' + e)
+    res.status(400).send({ error: e })
   }
 })
 
 // -- upload user profile image --
-router.post('/users/me/avatar', upload.single('avatar'), async (req, res) => {
-  res.status(202).send('SUCCESS')
+router.post('/users/me/avatar', auth, upload.single('avatar'), async (req, res) => {
+  const buffer = await sharp(req.file.buffer).resize({ width: 250, height: 250 }).png().toBuffer()
+
+  req.user.avatar = buffer
+  await req.user.save()
+
+  res.status(202).send({ success: 'successfully uploaded the avatar' })
+}, (err, req, res, next) => {
+  res.status(400).send({ error: err.message })
+})
+
+// -- delete user profile image --
+router.delete('/users/me/avatar', auth, async (req, res) => {
+  req.user.avatar = undefined
+  await req.user.save()
+
+  res.status(200).send({ success: 'successfully removed the avatar'})
+});
+
+// -- get user profile image --
+router.get('/users/:id/avatar', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+    
+    if(!user || !user.avatar) {
+      throw new Error()
+    }
+
+    res.set('Content-Type', 'image/png')
+
+    res.send(user.avatar)
+  } catch(e) {
+    res.status(404).send()
+  }
 })
 
 export default router
