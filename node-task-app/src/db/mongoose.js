@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-export default mongoose.connect('mongodb://127.0.0.1:27017/task-manager-api', {
+export default mongoose.connect(process.env.MONGODB_LOCATION, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   useCreateIndex: true,
